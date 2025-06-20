@@ -16,38 +16,76 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * The SimpletronGUI class represents the graphical user interface for the Simpletron simulator.
- * It is responsible for displaying the editor, controls, memory, and execution console, and
- * facilitating user interactions with the simulation.
+ * A classe SimpletronGUI fornece uma interface gráfica para a simulação e controle da máquina Simpletron.
+ * Esta classe permite carregar programas, executar instruções, e visualizar
+ * o estado interno do Simpletron, incluindo memória, registradores e console.
  *
- * This class provides methods to initialize GUI components, handle user actions for loading
- * and executing programs, and communicate with the SimpletronLogic backend to simulate the
- * behavior of the Simpletron machine.
+ * A interface é construída com base na biblioteca Swing e oferece controle
+ * de velocidade de execução, manipulação de arquivos e geração de relatórios da execução.
+ *
+ * Superclasse: javax.swing.JFrame
+ *
+ * Campos:
+ * - simpletron: Um objeto que encapsula a lógica do Simpletron (uma instância de SimpletronLogic).
+ * - temporizadorExecucao: Controla a execução contínua passo a passo com base no controle de tempo.
+ * - areaDecodigo: Componente de texto para visualização ou edição do código SML.
+ * - botaoCarregarArquivo: Botão para carregar um programa SML de um arquivo de texto/sml.
+ * - botaoCarregarMemoria: Botão para carregar o código do campo de texto para a memória do Simpletron.
+ * - botaoExecutar: Botõa para iniciar ou continuar a execução das instruções.
+ * - botaoResetar: Botão para reinicializar o Simpletron para seu estado inicial.
+ * - botaoSalvarRelatorio: Botão para salvar um relatório de execução em um arquivo externo.
+ * - speedSlider: Controle deslizante para ajustar a velocidade de execução contínua.
+ * - campoAcumulador: Campo de texto para exibir o valor do acumulador.
+ * - campoContadorInstrucao: Campo de texto para exibir o índice da próxima instrução.
+ * - campoRegistradorInstrucao: Campo de texto para exibir a instrução atual sendo executada.
+ * - campoCodigoOperacao: Campo de texto para exibir o código de operação atual.
+ * - campoOperando: Campo de texto para exibir o operando atual.
+ * - camposMemoria: Campos de texto para exibição e edição das posições de memória do Simpletron.
+ * - areaConsole: Componente de texto para exibição de mensagens e saídas do Simpletron.
+ * - seletorArquivo: Componente que permite selecionar arquivos pelo sistema de diretórios.
+ *
+ * Construtores:
+ * - SimpletronGUI(): Construtor que inicializa a interface gráfica e associa as ações aos componentes.
+ *
+ * Métodos:
+ * - initComponents(): Configura os componentes gráficos, layouts e painéis da interface.
+ * - criarCampoRegistrador(): Cria e retorna um campo de texto configurado para exibição de valores de registradores.
+ * - initActions(): Associa eventos aos componentes da interface, como cliques de botões e ajustes do slider.
+ * - executarPasso(): Executa uma única instrução do programa carregado na memória do Simpletron.
+ * - erroFatal(String mensagem): Exibe uma mensagem de erro crítica e reinicia o Simpletron.
+ * - definirControlesAtivos(boolean ativo): Habilita ou desabilita os componentes da interface.
+ * - gerarRelatorioExecucao(): Gera e retorna um relatório textual detalhado sobre o estado atual do Simpletron.
+ * - obterDumpComoString(): Retorna o estado atual da memória do Simpletron como uma string formatada.
+ * - atualizarGUI(): Atualiza a interface refletindo o estado atual da memória, registradores e console.
+ * - main(String[] args): Metodo principal que cria e exibe a interface da aplicação.
  */
 public class SimpletronGUI extends JFrame {
 
     private final SimpletronLogic simpletron;
-    private Timer executionTimer;
+    private Timer temporizadorExecucao;
 
     // --- Componentes da GUI ---
-    private JTextArea codeArea;
-    private JButton loadFileButton;
-    private JButton loadMemoryButton;
-    private JButton runButton;
-    private JButton resetButton;
-    private JButton saveReportButton;
+    private JTextArea areaDecodigo;
+    private JButton botaoCarregarArquivo;
+    private JButton botaoCarregarMemoria;
+    private JButton botaoExecutar;
+    private JButton botaoResetar;
+    private JButton botaoSalvarRelatorio;
+    private JSlider speedSlider;
 
-    private JTextField accumulatorField, instructionCounterField, instructionRegisterField, operationCodeField, operandField;
-    private JTextField[] memoryFields;
-    private JTextArea consoleArea;
+    private JTextField campoAcumulador, campoContadorInstrucao, campoRegistradorInstrucao, 
+                      campoCodigoOperacao, campoOperando;
+    private JTextField[] camposMemoria;
+    private JTextArea areaConsole;
 
-    private JFileChooser fileChooser;
+
+    private JFileChooser seletorArquivo;
 
     public SimpletronGUI() {
         super("Simulador Simpletron");
         simpletron = new SimpletronLogic();
 
-        initCompotents();
+        initComponents();
         initActions();
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -56,107 +94,130 @@ public class SimpletronGUI extends JFrame {
         setVisible(true);
     }
 
-    private void initCompotents() {
-        setLayout(new BorderLayout(10, 10));
+    private void initComponents() {
+        setLayout(new BorderLayout(5, 10));
 
         // --- PAINEL ESQUERDO (CÓDIGO E CONTROLES) ---
-        JPanel leftPanel = new JPanel(new BorderLayout(5, 5));
+        JPanel painelEsquerdo = new JPanel(new BorderLayout(5, 5));
 
-        codeArea = new JTextArea(10, 10);
-        codeArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        JScrollPane codeScrollPane = new JScrollPane(codeArea);
-        codeScrollPane.setBorder(new TitledBorder("1. Editor de Código SML"));
-        leftPanel.add(codeScrollPane, BorderLayout.CENTER);
+        areaDecodigo = new JTextArea(10, 10);
+        areaDecodigo.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        JScrollPane painelRolagemCodigo = new JScrollPane(areaDecodigo);
+        painelRolagemCodigo.setBorder(new TitledBorder("1. Editor de Código SML"));
+        painelEsquerdo.add(painelRolagemCodigo, BorderLayout.CENTER);
 
-        JPanel controlPanel = new JPanel(new FlowLayout());
-        controlPanel.setBorder(new TitledBorder("2. Controles"));
+        JPanel southPanel = new JPanel();
+        southPanel.setLayout(new BoxLayout(southPanel, BoxLayout.Y_AXIS));
 
-        loadFileButton = new JButton("Carregar de Arquivo..."); // NOVO
-        loadMemoryButton = new JButton("Carregar na Memória");
-        runButton = new JButton("Executar");
-        resetButton = new JButton("Resetar");
-        saveReportButton = new JButton("Salvar Relatório...");
+        JPanel painelControle = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 2));
+        painelControle.setBorder(new TitledBorder("2. Controles de Execução"));
 
-        runButton.setEnabled(false);
-        saveReportButton.setEnabled(false);
 
-        controlPanel.add(loadFileButton);
-        controlPanel.add(loadMemoryButton);
-        controlPanel.add(runButton);
-        controlPanel.add(saveReportButton);
-        controlPanel.add(resetButton);
-        leftPanel.add(controlPanel, BorderLayout.SOUTH);
+        botaoCarregarArquivo = new JButton("Carregar Arquivo...");
+        botaoCarregarMemoria = new JButton("Carregar na Memória");
+        botaoExecutar = new JButton("Executar");
+        botaoResetar = new JButton("Reiniciar");
+        botaoSalvarRelatorio = new JButton("Salvar Relatório...");
 
-        add(leftPanel, BorderLayout.WEST);
+        botaoExecutar.setEnabled(false);
+        botaoSalvarRelatorio.setEnabled(false);
+
+        painelControle.add(botaoCarregarArquivo);
+        painelControle.add(botaoCarregarMemoria);
+        painelControle.add(botaoExecutar);
+        painelControle.add(botaoSalvarRelatorio);
+        painelControle.add(botaoResetar);
+
+        JPanel painelSpeed = new JPanel(new BorderLayout());
+        painelSpeed.setBorder(new TitledBorder("3. Controle de Velocidade (ms por passo)"));
+        speedSlider = new JSlider(JSlider.HORIZONTAL, 20, 1000, 200); // Mínimo(rápido), Máximo(lento), Valor Inicial
+        speedSlider.setMajorTickSpacing(200);
+        speedSlider.setMinorTickSpacing(50);
+        speedSlider.setPaintTicks(true);
+        speedSlider.setPaintLabels(true);
+        painelSpeed.add(new JLabel("Rápido"), BorderLayout.WEST);
+        painelSpeed.add(speedSlider, BorderLayout.CENTER);
+        painelSpeed.add(new JLabel("Lento"), BorderLayout.EAST);
+
+        southPanel.add(painelControle);
+        southPanel.add(painelSpeed); // Adiciona o painel de velocidade abaixo dos botões
+        painelEsquerdo.add(southPanel, BorderLayout.SOUTH);
+        //painelEsquerdo.add(painelControle, BorderLayout.SOUTH);
+
+        add(painelEsquerdo, BorderLayout.WEST);
 
         // --- PAINEL DIREITO (REGISTRADORES E MEMÓRIA) ---
-        JPanel rightPanel = new JPanel(new BorderLayout(5, 10));
-        JPanel registersPanel = new JPanel(new GridLayout(5, 2, 5, 5));
-        registersPanel.setBorder(new TitledBorder("Registradores"));
-        accumulatorField = createRegisterField();
-        instructionCounterField = createRegisterField();
-        instructionRegisterField = createRegisterField();
-        operationCodeField = createRegisterField();
-        operandField = createRegisterField();
-        registersPanel.add(new JLabel("Acumulador:"));
-        registersPanel.add(accumulatorField);
-        registersPanel.add(new JLabel("Contador de Instrução:"));
-        registersPanel.add(instructionCounterField);
-        registersPanel.add(new JLabel("Registrador de Instrução:"));
-        registersPanel.add(instructionRegisterField);
-        registersPanel.add(new JLabel("Código de Operação:"));
-        registersPanel.add(operationCodeField);
-        registersPanel.add(new JLabel("Operando:"));
-        registersPanel.add(operandField);
-        rightPanel.add(registersPanel, BorderLayout.NORTH);
-        JPanel memoryPanel = new JPanel(new GridLayout(10, 10, 2, 2));
-        memoryPanel.setBorder(new TitledBorder("Memória"));
-        memoryFields = new JTextField[100];
+        JPanel painelDireito = new JPanel(new BorderLayout(5, 10));
+        JPanel painelRegistradores = new JPanel(new GridLayout(5, 2, 5, 5));
+        painelRegistradores.setBorder(new TitledBorder("Registradores"));
+        
+        campoAcumulador = criarCampoRegistrador();
+        campoContadorInstrucao = criarCampoRegistrador();
+        campoRegistradorInstrucao = criarCampoRegistrador();
+        campoCodigoOperacao = criarCampoRegistrador();
+        campoOperando = criarCampoRegistrador();
+
+        painelRegistradores.add(new JLabel("Acumulador:"));
+        painelRegistradores.add(campoAcumulador);
+        painelRegistradores.add(new JLabel("Contador de Instrução:"));
+        painelRegistradores.add(campoContadorInstrucao);
+        painelRegistradores.add(new JLabel("Registrador de Instrução:"));
+        painelRegistradores.add(campoRegistradorInstrucao);
+        painelRegistradores.add(new JLabel("Código de Operação:"));
+        painelRegistradores.add(campoCodigoOperacao);
+        painelRegistradores.add(new JLabel("Operando:"));
+        painelRegistradores.add(campoOperando);
+
+        painelDireito.add(painelRegistradores, BorderLayout.NORTH);
+
+        JPanel painelMemoria = new JPanel(new GridLayout(10, 10, 2, 2));
+        painelMemoria.setBorder(new TitledBorder("Memória"));
+        camposMemoria = new JTextField[100];
+        
         for (int i = 0; i < 100; i++) {
-            memoryFields[i] = new JTextField(5);
-            memoryFields[i].setEditable(false);
-            memoryFields[i].setHorizontalAlignment(JTextField.CENTER);
-            memoryFields[i].setFont(new Font("Monospaced", Font.BOLD, 12));
-            memoryPanel.add(memoryFields[i]);
+            camposMemoria[i] = new JTextField(5);
+            camposMemoria[i].setEditable(false);
+            camposMemoria[i].setHorizontalAlignment(JTextField.CENTER);
+            camposMemoria[i].setFont(new Font("Monospaced", Font.BOLD, 12));
+            painelMemoria.add(camposMemoria[i]);
         }
-        rightPanel.add(memoryPanel, BorderLayout.CENTER);
-        add(rightPanel, BorderLayout.CENTER);
+        
+        painelDireito.add(painelMemoria, BorderLayout.CENTER);
+        add(painelDireito, BorderLayout.CENTER);
 
         // --- PAINEL INFERIOR (CONSOLE) ---
-        // (Esta parte não muda)
-        consoleArea = new JTextArea(8, 50);
-        consoleArea.setEditable(false);
-        consoleArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        JScrollPane consoleScrollPane = new JScrollPane(consoleArea);
-        consoleScrollPane.setBorder(new TitledBorder("Console de Saída"));
-        add(consoleScrollPane, BorderLayout.SOUTH);
+        areaConsole = new JTextArea(8, 50);
+        areaConsole.setEditable(false);
+        areaConsole.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        JScrollPane painelRolagemConsole = new JScrollPane(areaConsole);
+        painelRolagemConsole.setBorder(new TitledBorder("Console de Saída"));
+        add(painelRolagemConsole, BorderLayout.SOUTH);
 
-        updateGUI();
+        atualizarGUI();
     }
 
-
-    private JTextField createRegisterField() {
-        JTextField field = new JTextField();
-        field.setEditable(false);
-        field.setFont(new Font("Monospaced", Font.BOLD, 14));
-        return field;
+    private JTextField criarCampoRegistrador() {
+        JTextField campo = new JTextField();
+        campo.setEditable(false);
+        campo.setFont(new Font("Monospaced", Font.BOLD, 14));
+        return campo;
     }
 
     private void initActions() {
-        // --- Configuração do seletor de arquivos
-        fileChooser = new JFileChooser();
-        FileNameExtensionFilter filter = new FileNameExtensionFilter("Arquivos Simpletron (*.sml, *.txt)", "sml", "txt");
-        fileChooser.setFileFilter(filter);
+        seletorArquivo = new JFileChooser(System.getProperty("user.dir"));
+        FileNameExtensionFilter filtro = new FileNameExtensionFilter(
+            "Arquivos Simpletron (*.sml, *.txt)", "sml", "txt");
+        seletorArquivo.setFileFilter(filtro);
 
-        loadFileButton.addActionListener(e -> {
-            int result = fileChooser.showOpenDialog(this);
-            if (result == JFileChooser.APPROVE_OPTION) {
-                File selectedFile = fileChooser.getSelectedFile();
+        botaoCarregarArquivo.addActionListener(e -> {
+            int resultado = seletorArquivo.showOpenDialog(this);
+            if (resultado == JFileChooser.APPROVE_OPTION) {
+                File arquivoSelecionado = seletorArquivo.getSelectedFile();
                 try {
-                    String content = Files.readString(selectedFile.toPath(), StandardCharsets.UTF_8);
-                    codeArea.setText(content);
-                    consoleArea.setText("Aarquivo '" + selectedFile.getName() + "' carregado no editor.\n"
-                            + "Clique em 'CArregar na Memória para continuar.\n");
+                    String conteudo = Files.readString(arquivoSelecionado.toPath(), StandardCharsets.UTF_8);
+                    areaDecodigo.setText(conteudo);
+                    areaConsole.setText("Arquivo '" + arquivoSelecionado.getName() + "' carregado no editor.\n"
+                            + "Clique em 'Carregar na Memória' para continuar.\n");
                 } catch (IOException ex) {
                     JOptionPane.showMessageDialog(this,
                             "Erro ao ler o arquivo: " + ex.getMessage(),
@@ -166,64 +227,80 @@ public class SimpletronGUI extends JFrame {
             }
         });
 
-        // --- Ação do Botão CARREGAR NA MEMÓRIA ---
-        loadMemoryButton.addActionListener(e -> {
-            String[] lines = codeArea.getText().lines().toArray(String[]::new);
-            String errorMessage = simpletron.loadProgram(lines);
+        botaoCarregarMemoria.addActionListener(e -> {
+            String[] linhas = areaDecodigo.getText().lines().toArray(String[]::new);
+            String mensagemErro = simpletron.carregarPrograma(linhas);
 
-            updateGUI();// Atualiza a GUI para mostrar o carregamento parcial (se houver)
-            if (errorMessage == null) {
-                // Sucesso!
-                consoleArea.append("Programa carregado na memória com sucesso.\n");
-                runButton.setEnabled(true); // Habilita a execução
-            } else {
-                // Falha! Exibe o erro para o usuário.
-                JOptionPane.showMessageDialog(this, errorMessage, "Erro de Carregamento", JOptionPane.ERROR_MESSAGE);
-                consoleArea.append("FALHA AO CARREGAR: " + errorMessage + "\n");
-                runButton.setEnabled(false); // Garante que o botão de execução permaneça desabilitado
-            }
-            saveReportButton.setEnabled(false);
-        });
+            atualizarGUI();
+            // Não houve problemas ao carregar o programa na memória
+            if (mensagemErro == null) {
+                areaConsole.append("Programa carregado na memória com sucesso.\n");
+                botaoExecutar.setEnabled(true);
+                botaoSalvarRelatorio.setEnabled(false);
 
-        runButton.addActionListener(e -> {
-            setControlsEnabled(false);
-            consoleArea.setText(""); // Limpa o console antes de uma nova execução
-            consoleArea.append("Iniciando execução...\n");
-            executionTimer.start();
-        });
+                StringBuilder formattedCode = new StringBuilder();
+                for (int i=0; i<linhas.length; i++) {
+                    String linhaOriginal = linhas[i];
+                    String parteInstrucao = linhaOriginal;
 
-        resetButton.addActionListener(e -> {
-            if (executionTimer.isRunning()) {
-                executionTimer.stop();
-            }
-            simpletron.reset();
-            updateGUI();
-            codeArea.setText("");
-            consoleArea.setText("Simulador resetado.\n");
-            setControlsEnabled(true);
-            runButton.setEnabled(false);
-            saveReportButton.setEnabled(false);
-        });
+                    if (linhaOriginal.contains("//")) {
+                        parteInstrucao = linhaOriginal.substring(0, linhaOriginal.indexOf("//"));
+                    }
 
-        // --- Ação do Botão SALVAR RELATÓRIO ---
-        saveReportButton.addActionListener(e -> {
-            // Define um caminho fixo na raiz do projeto.
-            String fileName = "relatorio_execucao.log.txt";
-            File reportFile = new File(System.getProperty("user.dir"), fileName);
+                    if (parteInstrucao.trim().isEmpty()) {
+                        formattedCode.append(linhaOriginal).append("\n");
+                    } else {
+                        int isntrucao = simpletron.getMemoryAt(i);
+                        String comentario = simpletron.getCommentAt(i);
 
-            try {
-                // Abre o FileWriter em modo de "append" (o segundo parâmetro 'true').
-                // O PrintWriter garantirá que a escrita seja feita de forma eficiente.
-                // O try-with-resources garante que o arquivo será fechado corretamente.
-                try (PrintWriter out = new PrintWriter(new FileWriter(reportFile, true))) {
-                    out.println(generateExecutionReport());
-                    out.println("\n"); // Adiciona uma linha extra para separar os relatórios
-
-                    JOptionPane.showMessageDialog(this,
-                            "Relatório adicionado com sucesso ao arquivo:\n" + reportFile.getAbsolutePath(),
-                            "Sucesso",
-                            JOptionPane.INFORMATION_MESSAGE);
+                        String formattedLine = String.format("%+05d", isntrucao);
+                        if (comentario != null && !comentario.isEmpty()) {
+                            formattedLine += String.format("  // %s", comentario);
+                        }
+                        formattedCode.append(formattedLine).append("\n");
+                    }
                 }
+                areaDecodigo.setText(formattedCode.toString());
+            } else {
+                JOptionPane.showMessageDialog(this, mensagemErro, "Erro de Carregamento", JOptionPane.ERROR_MESSAGE);
+                areaConsole.append("FALHA AO CARREGAR: " + mensagemErro + "\n");
+                botaoExecutar.setEnabled(false);
+            }
+            botaoSalvarRelatorio.setEnabled(false);
+        });
+
+        botaoExecutar.addActionListener(e -> {
+            definirControlesAtivos(false);
+            areaConsole.setText("");
+            areaConsole.append("Iniciando execução...\n");
+            temporizadorExecucao.start();
+        });
+
+        botaoResetar.addActionListener(e -> {
+            if (temporizadorExecucao.isRunning()) {
+                temporizadorExecucao.stop();
+            }
+            simpletron.reiniciar();
+            atualizarGUI();
+            areaDecodigo.setText("");
+            areaConsole.setText("Simulador resetado.\n");
+            definirControlesAtivos(true);
+            botaoExecutar.setEnabled(false);
+            botaoSalvarRelatorio.setEnabled(false);
+        });
+
+        botaoSalvarRelatorio.addActionListener(e -> {
+            String nomeArquivo = "relatorio_execucao.log.txt";
+            File arquivoRelatorio = new File(System.getProperty("user.dir"), nomeArquivo);
+
+            try (PrintWriter saida = new PrintWriter(new FileWriter(arquivoRelatorio, true))) {
+                saida.println(gerarRelatorioExecucao());
+                saida.println("\n");
+
+                JOptionPane.showMessageDialog(this,
+                        "Relatório adicionado com sucesso ao arquivo:\n" + arquivoRelatorio.getAbsolutePath(),
+                        "Sucesso",
+                        JOptionPane.INFORMATION_MESSAGE);
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this,
                         "Erro ao salvar o arquivo de relatório: " + ex.getMessage(),
@@ -232,86 +309,95 @@ public class SimpletronGUI extends JFrame {
             }
         });
 
-        executionTimer = new Timer(50, e -> stepExecution());
+        speedSlider.addChangeListener(e -> {
+            if (temporizadorExecucao != null) {
+                temporizadorExecucao.setDelay(speedSlider.getValue());
+            }
+        });
+
+        temporizadorExecucao = new Timer(speedSlider.getValue(), e -> executarPasso());
+        //temporizadorExecucao = new Timer(500, e -> executarPasso());
+
+
     }
 
-    private void stepExecution() {
-        int opCode = simpletron.executeStep();
-        if (opCode == SimpletronLogic.READ) {
-            executionTimer.stop();
-            String input = JOptionPane.showInputDialog(this, "Digite um valor para a instrução READ ");
+    private void executarPasso() {
+        int codigoOp = simpletron.executarPasso();
+        if (codigoOp == SimpletronLogic.READ) {
+            temporizadorExecucao.stop();
+            String entrada = JOptionPane.showInputDialog(this, "Digite um valor para a instrução READ ");
             try {
-                int value = Integer.parseInt(input);
-                if (value < -9999 || value > 9999) {
+                int valor = Integer.parseInt(entrada);
+                // Validação de estouro do acumulador
+                if (valor < -9999 || valor > 9999) {
                     erroFatal("Valor de entrada fora da faixa [-9999, 9999]");
                     return;
                 }
-                simpletron.setMemoryAt(simpletron.getOperand(), value);
-                executionTimer.start();
+                simpletron.setMemoryAt(simpletron.getOperand(), valor);
+                temporizadorExecucao.start();
             } catch (NumberFormatException ex) {
                 erroFatal("Entrada Inválida. A execução foi abortada. ");
             }
         }
-        else if(opCode == SimpletronLogic.WRITE) {
-            consoleArea.append("Saída: " + simpletron.getMemoryAt(simpletron.getOperand()) + "\n");
-        }else if (opCode == SimpletronLogic.HALT) {
-            executionTimer.stop();
-            consoleArea.append("\n***Execução finalizada normalmente. ***\n");
-            setControlsEnabled(true);
-            saveReportButton.setEnabled(true);
-            runButton.setEnabled(false);
-        }else if (opCode < 0) {
-            switch (opCode) {
+        else if(codigoOp == SimpletronLogic.WRITE) {
+            areaConsole.append("Saída: " + simpletron.getMemoryAt(simpletron.getOperand()) + "\n");
+        }
+        else if (codigoOp == SimpletronLogic.HALT) {
+            temporizadorExecucao.stop();
+            areaConsole.append("\n***Execução finalizada normalmente. ***\n");
+            definirControlesAtivos(true);
+            botaoSalvarRelatorio.setEnabled(true);
+            botaoExecutar.setEnabled(false);
+        }
+        else if (codigoOp < 0) {
+            switch (codigoOp) {
                 case -1: erroFatal("Erro fatal: Tentativa de divisão por zero.");
                 case -2: erroFatal("Erro fatal: Código de operação inválido.");
                 case -3: erroFatal("Erro fatal: Estouro do acumulador. ");
             }
             return;
         }
-        updateGUI();
+        atualizarGUI();
     }
 
-    private void erroFatal(String message) {
-        executionTimer.stop();
-        consoleArea.append("\n" + message + "\n");
-        JOptionPane.showMessageDialog(this, message, "Erro Fatal", JOptionPane.ERROR_MESSAGE);
-        setControlsEnabled(true);
-        runButton.setEnabled(false);
+    private void erroFatal(String mensagem) {
+        temporizadorExecucao.stop();
+        areaConsole.append("\n" + mensagem + "\n");
+        JOptionPane.showMessageDialog(this, mensagem, "Erro Fatal", JOptionPane.ERROR_MESSAGE);
+        definirControlesAtivos(true);
+        botaoExecutar.setEnabled(false);
     }
 
-    private void setControlsEnabled(boolean enabled) {
-        loadFileButton.setEnabled(enabled);
-        loadMemoryButton.setEnabled(enabled);
-        runButton.setEnabled(enabled);
-        resetButton.setEnabled(enabled);
-        codeArea.setEnabled(enabled);
+    private void definirControlesAtivos(boolean ativo) {
+        botaoCarregarArquivo.setEnabled(ativo);
+        botaoCarregarMemoria.setEnabled(ativo);
+        botaoExecutar.setEnabled(ativo);
+        botaoResetar.setEnabled(ativo);
+        areaDecodigo.setEnabled(ativo);
     }
 
-    private String generateExecutionReport() {
-        StringBuilder report = new StringBuilder();
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+    private String gerarRelatorioExecucao() {
+        StringBuilder relatorio = new StringBuilder();
+        DateTimeFormatter formatador = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
-        report.append("==============================================\n");
-        report.append("   RELATÓRIO DE EXECUÇÃO DO SIMPLETRON\n");
-        report.append("==============================================\n\n");
-        report.append("Data/Hora da Execução: ").append(dtf.format(LocalDateTime.now())).append("\n\n");
+        relatorio.append("==============================================\n");
+        relatorio.append("   RELATÓRIO DE EXECUÇÃO DO SIMPLETRON\n");
+        relatorio.append("==============================================\n\n");
+        relatorio.append("Data/Hora da Execução: ").append(formatador.format(LocalDateTime.now())).append("\n\n");
 
-        report.append("--- CÓDIGO SML EXECUTADO ---\n");
-        report.append(codeArea.getText()).append("\n\n");
+        relatorio.append("--- CÓDIGO SML EXECUTADO ---\n");
+        relatorio.append(areaDecodigo.getText()).append("\n\n");
 
-        report.append("--- LOG DO CONSOLE (ENTRADA/SAÍDA) ---\n");
-        report.append(consoleArea.getText()).append("\n");
+        relatorio.append("--- LOG DO CONSOLE (ENTRADA/SAÍDA) ---\n");
+        relatorio.append(areaConsole.getText()).append("\n");
 
-        report.append("--- DUMP FINAL DA MÁQUINA ---\n");
-        report.append(getDumpAsString()); // Usa um novo metodo auxiliar
+        relatorio.append("--- DUMP FINAL DA MÁQUINA ---\n");
+        relatorio.append(obterDumpComoString());
 
-        return report.toString();
+        return relatorio.toString();
     }
 
-    /**
-     * Versão do "dump" que retorna uma String em vez de imprimir no console.
-     */
-    private String getDumpAsString() {
+    private String obterDumpComoString() {
         StringBuilder dump = new StringBuilder();
 
         dump.append("REGISTRADORES:\n");
@@ -322,19 +408,18 @@ public class SimpletronGUI extends JFrame {
         dump.append(String.format("operando:              %02d\n\n", simpletron.getOperand()));
 
         dump.append("MEMÓRIA:\n");
-        // Cabeçalho da coluna
         dump.append("    ");
         for (int i = 0; i < 10; i++) {
             dump.append(String.format("   %d  ", i));
         }
         dump.append("\n");
 
-        int[] memory = simpletron.getMemory();
+        int[] memoria = simpletron.getMemory();
         for (int i = 0; i < 100; i++) {
             if (i % 10 == 0) {
                 dump.append(String.format("%2d  ", i));
             }
-            dump.append(String.format("%+05d ", memory[i]));
+            dump.append(String.format("%+05d ", memoria[i]));
             if ((i + 1) % 10 == 0) {
                 dump.append("\n");
             }
@@ -342,26 +427,24 @@ public class SimpletronGUI extends JFrame {
         return dump.toString();
     }
 
-    private void updateGUI() {
-        accumulatorField.setText(String.format("%+05d", simpletron.getAccumulator()));
-        instructionCounterField.setText(String.format("%02d", simpletron.getInstructionCounter()));
-        instructionRegisterField.setText(String.format("%+05d", simpletron.getInstructionRegister()));
-        operationCodeField.setText(String.format("%02d", simpletron.getOperationCode()));
-        operandField.setText(String.format("%02d", simpletron.getOperand()));
-        int[] memory = simpletron.getMemory();
-        for (int i=0; i<memory.length; i++) {
-            memoryFields[i].setText(String.format("%+05d", memory[i]));
+    private void atualizarGUI() {
+        campoAcumulador.setText(String.format("%+05d", simpletron.getAccumulator()));
+        campoContadorInstrucao.setText(String.format("%02d", simpletron.getInstructionCounter()));
+        campoRegistradorInstrucao.setText(String.format("%+05d", simpletron.getInstructionRegister()));
+        campoCodigoOperacao.setText(String.format("%02d", simpletron.getOperationCode()));
+        campoOperando.setText(String.format("%02d", simpletron.getOperand()));
+        
+        int[] memoria = simpletron.getMemory();
+        for (int i = 0; i < memoria.length; i++) {
+            camposMemoria[i].setText(String.format("%+05d", memoria[i]));
+            camposMemoria[i].setBackground(Color.WHITE);
         }
-        for (int i = 0; i < 100; i++) {
-            memoryFields[i].setBackground(Color.WHITE);
-        }
-        int ic = simpletron.getInstructionCounter();
-        if (ic >= 0 && ic < 100) {
-            memoryFields[ic].setBackground(Color.CYAN);
+        
+        int contadorInstrucao = simpletron.getInstructionCounter();
+        if (contadorInstrucao >= 0 && contadorInstrucao < 100) {
+            camposMemoria[contadorInstrucao].setBackground(Color.CYAN);
         }
     }
-
-
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(SimpletronGUI::new);

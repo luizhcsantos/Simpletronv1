@@ -1,0 +1,14 @@
+// Soma números até que o usuário digite 0.
+// Laço começa aqui
++1008     // 00: READ (Leia um número e guarde na posição 08)
++2008     // 01: LOAD (Carregue o número lido no acumulador)
++4210     // 02: BRANCHZERO para 06 (Se o número for 0, pule para o fim do laço)
++2009     // 03: LOAD (Carregue a soma atual no acumulador)
++3008     // 04: ADD  (Adicione o número lido à soma)
++2109     // 05: STORE (Guarde a nova soma na posição 09)
++4000     // 06: BRANCH para 00 (Volte para o início do laço)
+// Fim do laço
++1109     // 07: WRITE (Imprima a soma final que está na posição 09)
++4300     // 08: HALT
++0000     // 09: Variável para o número lido
++0000     // 10: Variável para armazenar a soma total (inicia em 0)
