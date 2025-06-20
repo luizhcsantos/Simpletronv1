@@ -5,6 +5,7 @@ import org.simpletronv1.logic.SimpletronLogic;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.*;
 import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
@@ -20,7 +21,7 @@ import java.time.format.DateTimeFormatter;
  * Esta classe permite carregar programas, executar instruções, e visualizar
  * o estado interno do Simpletron, incluindo memória, registradores e console.
  *
- * A interface é construída com base na biblioteca Swing e oferece controle
+ * A interface é construída com base na biblioteca Swing, e oferece controle
  * de velocidade de execução, manipulação de arquivos e geração de relatórios da execução.
  *
  * Superclasse: javax.swing.JFrame
@@ -76,8 +77,11 @@ public class SimpletronGUI extends JFrame {
     private JTextField campoAcumulador, campoContadorInstrucao, campoRegistradorInstrucao, 
                       campoCodigoOperacao, campoOperando;
     private JTextField[] camposMemoria;
-    private JTextArea areaConsole;
-
+    //private JTextArea areaConsole;
+    private JTextPane areaConsole;
+    private Style estiloPadrao;
+    private Style estiloSaida;
+    private Style estiloErro;
 
     private JFileChooser seletorArquivo;
 
@@ -97,7 +101,7 @@ public class SimpletronGUI extends JFrame {
     private void initComponents() {
         setLayout(new BorderLayout(5, 10));
 
-        // --- PAINEL ESQUERDO (CÓDIGO E CONTROLES) ---
+        // PAINEL ESQUERDO (CÓDIGO E CONTROLES)
         JPanel painelEsquerdo = new JPanel(new BorderLayout(5, 5));
 
         areaDecodigo = new JTextArea(10, 10);
@@ -111,7 +115,6 @@ public class SimpletronGUI extends JFrame {
 
         JPanel painelControle = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 2));
         painelControle.setBorder(new TitledBorder("2. Controles de Execução"));
-
 
         botaoCarregarArquivo = new JButton("Carregar Arquivo...");
         botaoCarregarMemoria = new JButton("Carregar na Memória");
@@ -146,7 +149,7 @@ public class SimpletronGUI extends JFrame {
 
         add(painelEsquerdo, BorderLayout.WEST);
 
-        // --- PAINEL DIREITO (REGISTRADORES E MEMÓRIA) ---
+        // PAINEL DIREITO (REGISTRADORES E MEMÓRIA)
         JPanel painelDireito = new JPanel(new BorderLayout(5, 10));
         JPanel painelRegistradores = new JPanel(new GridLayout(5, 2, 5, 5));
         painelRegistradores.setBorder(new TitledBorder("Registradores"));
@@ -159,7 +162,7 @@ public class SimpletronGUI extends JFrame {
 
         painelRegistradores.add(new JLabel("Acumulador:"));
         painelRegistradores.add(campoAcumulador);
-        painelRegistradores.add(new JLabel("Contador de Instrução:"));
+        painelRegistradores.add(new JLabel("Contador de Isntrução:"));
         painelRegistradores.add(campoContadorInstrucao);
         painelRegistradores.add(new JLabel("Registrador de Instrução:"));
         painelRegistradores.add(campoRegistradorInstrucao);
@@ -185,11 +188,28 @@ public class SimpletronGUI extends JFrame {
         painelDireito.add(painelMemoria, BorderLayout.CENTER);
         add(painelDireito, BorderLayout.CENTER);
 
-        // --- PAINEL INFERIOR (CONSOLE) ---
-        areaConsole = new JTextArea(8, 50);
+        // PAINEL INFERIOR (CONSOLE)
+        //areaConsole = new JTextArea(8, 50);
+        areaConsole = new JTextPane();
         areaConsole.setEditable(false);
         areaConsole.setFont(new Font("Monospaced", Font.PLAIN, 12));
+
+        StyledDocument doc = areaConsole.getStyledDocument();
+        estiloPadrao = StyleContext.getDefaultStyleContext().getStyle(StyleContext.DEFAULT_STYLE);
+
+        estiloSaida = doc.addStyle("EstiloSaida", estiloPadrao);
+        StyleConstants.setForeground(estiloSaida, new Color(19, 122, 16)); // Cor azul
+        StyleConstants.setBold(estiloSaida, true);
+        StyleConstants.setFontSize(estiloSaida, 14);
+
+        estiloErro = doc.addStyle("EstiloErro", estiloPadrao);
+        StyleConstants.setForeground(estiloErro, new Color(168, 7, 7));
+        StyleConstants.setBold(estiloErro, true);
+        StyleConstants.setFontSize(estiloErro, 14);
+
+
         JScrollPane painelRolagemConsole = new JScrollPane(areaConsole);
+        painelRolagemConsole.setPreferredSize(new Dimension(0, 150));
         painelRolagemConsole.setBorder(new TitledBorder("Console de Saída"));
         add(painelRolagemConsole, BorderLayout.SOUTH);
 
@@ -234,20 +254,21 @@ public class SimpletronGUI extends JFrame {
             atualizarGUI();
             // Não houve problemas ao carregar o programa na memória
             if (mensagemErro == null) {
-                areaConsole.append("Programa carregado na memória com sucesso.\n");
+                adicionarAoPainel("Programa carregado na memória com sucesso.\n", estiloPadrao);
+                //areaConsole.append("Programa carregado na memória com sucesso.\n");
                 botaoExecutar.setEnabled(true);
                 botaoSalvarRelatorio.setEnabled(false);
 
                 StringBuilder formattedCode = new StringBuilder();
                 for (int i=0; i<linhas.length; i++) {
                     String linhaOriginal = linhas[i];
-                    String parteInstrucao = linhaOriginal;
+                    String parteIsntrucao = linhaOriginal;
 
                     if (linhaOriginal.contains("//")) {
-                        parteInstrucao = linhaOriginal.substring(0, linhaOriginal.indexOf("//"));
+                        parteIsntrucao = linhaOriginal.substring(0, linhaOriginal.indexOf("//"));
                     }
 
-                    if (parteInstrucao.trim().isEmpty()) {
+                    if (parteIsntrucao.trim().isEmpty()) {
                         formattedCode.append(linhaOriginal).append("\n");
                     } else {
                         int isntrucao = simpletron.getMemoryAt(i);
@@ -263,7 +284,8 @@ public class SimpletronGUI extends JFrame {
                 areaDecodigo.setText(formattedCode.toString());
             } else {
                 JOptionPane.showMessageDialog(this, mensagemErro, "Erro de Carregamento", JOptionPane.ERROR_MESSAGE);
-                areaConsole.append("FALHA AO CARREGAR: " + mensagemErro + "\n");
+                adicionarAoPainel("FALHA AO CARREGAR: " + mensagemErro + "\n", estiloErro);
+                //areaConsole.append("FALHA AO CARREGAR: " + mensagemErro + "\n");
                 botaoExecutar.setEnabled(false);
             }
             botaoSalvarRelatorio.setEnabled(false);
@@ -272,7 +294,8 @@ public class SimpletronGUI extends JFrame {
         botaoExecutar.addActionListener(e -> {
             definirControlesAtivos(false);
             areaConsole.setText("");
-            areaConsole.append("Iniciando execução...\n");
+            adicionarAoPainel("Iniciando execução...\n", estiloPadrao);
+            //areaConsole.append("Iniciando execução...\n");
             temporizadorExecucao.start();
         });
 
@@ -303,7 +326,7 @@ public class SimpletronGUI extends JFrame {
                         JOptionPane.INFORMATION_MESSAGE);
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(this,
-                        "Erro ao salvar o arquivo de relatório: " + ex.getMessage(),
+                        "Erro ao salvar o arquivo de relatorio: " + ex.getMessage(),
                         "Erro de Arquivo",
                         JOptionPane.ERROR_MESSAGE);
             }
@@ -340,20 +363,31 @@ public class SimpletronGUI extends JFrame {
             }
         }
         else if(codigoOp == SimpletronLogic.WRITE) {
-            areaConsole.append("Saída: " + simpletron.getMemoryAt(simpletron.getOperand()) + "\n");
+            String mensagemDeSaida = "Saída: " + simpletron.getMemoryAt(simpletron.getOperand()) + "\n";
+            adicionarAoPainel(mensagemDeSaida, estiloSaida);
+            //adicionarAoPainel("Saída: ", estiloPadrao);
+            //adicionarAoPainel(String.valueOf(simpletron.getMemoryAt(simpletron.getOperand())) + "\n", estiloSaida);
+            //areaConsole.append("Saída: " + simpletron.getMemoryAt(simpletron.getOperand()) + "\n");
         }
         else if (codigoOp == SimpletronLogic.HALT) {
             temporizadorExecucao.stop();
-            areaConsole.append("\n***Execução finalizada normalmente. ***\n");
+            adicionarAoPainel("\n***Execução finalizada normalmente. ***\n", estiloPadrao);
+            //areaConsole.append("\n***Execução finalizada normalmente. ***\n");
             definirControlesAtivos(true);
             botaoSalvarRelatorio.setEnabled(true);
             botaoExecutar.setEnabled(false);
         }
         else if (codigoOp < 0) {
             switch (codigoOp) {
-                case -1: erroFatal("Erro fatal: Tentativa de divisão por zero.");
-                case -2: erroFatal("Erro fatal: Código de operação inválido.");
-                case -3: erroFatal("Erro fatal: Estouro do acumulador. ");
+                case -1:
+                    erroFatal("Erro fatal: Tentativa de divisão por zero.");
+                    break;
+                case -2:
+                    erroFatal("Erro fatal: Código de operação inválido.");
+                    break;
+                case -3:
+                    erroFatal("Erro fatal: Estouro do acumulador. ");
+                    break;
             }
             return;
         }
@@ -362,10 +396,20 @@ public class SimpletronGUI extends JFrame {
 
     private void erroFatal(String mensagem) {
         temporizadorExecucao.stop();
-        areaConsole.append("\n" + mensagem + "\n");
+        adicionarAoPainel("\n" + mensagem + "\n", estiloErro);
+        //areaConsole.append("\n" + mensagem + "\n");
         JOptionPane.showMessageDialog(this, mensagem, "Erro Fatal", JOptionPane.ERROR_MESSAGE);
         definirControlesAtivos(true);
         botaoExecutar.setEnabled(false);
+    }
+
+    private void adicionarAoPainel(String msg, Style estilo) {
+        StyledDocument doc = areaConsole.getStyledDocument();
+        try {
+            doc.insertString(doc.getLength(), msg, estilo);
+        } catch (BadLocationException e) {
+            e.printStackTrace();
+        }
     }
 
     private void definirControlesAtivos(boolean ativo) {
